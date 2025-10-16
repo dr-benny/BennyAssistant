@@ -204,11 +204,17 @@ client.on("interactionCreate", async (interaction) => {
         );
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder()
-            .setCustomId("Discounted_Code")
+            .setCustomId(
+              "Discounted_Code_yes_" +
+                interaction.customId.replace("course_", "")
+            )
             .setLabel("มี")
             .setStyle(ButtonStyle.Success),
           new ButtonBuilder()
-            .setCustomId("Discounted_Code_No")
+            .setCustomId(
+              "Discounted_Code_No+" +
+                interaction.customId.replace("course_", "")
+            )
             .setLabel("ไม่มี")
             .setStyle(ButtonStyle.Danger)
         );
@@ -238,7 +244,10 @@ client.on("interactionCreate", async (interaction) => {
               .setLabel("มี")
               .setStyle(ButtonStyle.Success),
             new ButtonBuilder()
-              .setCustomId("Discounted_Code_No")
+              .setCustomId(
+                "Discounted_Code_No+" +
+                  interaction.customId.replace("course_", "")
+              )
               .setLabel("ไม่มี")
               .setStyle(ButtonStyle.Danger)
           );
@@ -284,7 +293,7 @@ client.on("interactionCreate", async (interaction) => {
               "กรุณาชำระเงินโดยสแกน QR Code ด้านล่างผ่านแอปธนาคารของคุณ",
               "",
               "🕒 *หลังจากชำระเงินแล้ว โปรดกดปุ่มอัปโหลดสลิปการชำระเงินจะมีเวลาแค่ ",
-              "**1 นาที** ในการ upload โปรดชำระเงินก่อนและค่อยกด!!!*",
+              "**10 นาที** ในการ upload โปรดชำระเงินก่อนและค่อยกด!!!*",
               "",
               `**ราคาที่ต้องชำระ:** ฿${price}`,
             ].join("\n"),
@@ -326,12 +335,11 @@ client.on("interactionCreate", async (interaction) => {
             interaction.channel?.createMessageComponentCollector({
               filter,
               max: 1,
-              time: 60_000,
+              time: 600_000,
             });
           async function handleUploadSlip(interaction: ButtonInteraction) {
             const user: User = interaction.user;
 
-            // ส่ง DM ไปหา user
             let dmChannel: DMChannel;
             try {
               dmChannel = await user.createDM();
@@ -350,18 +358,18 @@ client.on("interactionCreate", async (interaction) => {
               ephemeral: true,
             });
 
-            const duration = 60;
+            const duration = 600;
             let remaining = duration;
 
             const sentMessage = await dmChannel.send(
-              `📎 กรุณาอัปโหลดสลิปของคุณภายใน ${remaining} วินาที!`
+              `📎 กรุณาอัปโหลดสลิปโดยส่งภาพมาที่ DM ส่วนตัวของ bot ตัวนี้ภายใน ${remaining} วินาที!`
             );
 
             const interval = setInterval(async () => {
               remaining--;
               try {
                 await sentMessage.edit(
-                  `📎 กรุณาอัปโหลดสลิปของคุณภายใน ${remaining} วินาที!`
+                  `📎 กรุณาอัปโหลดสลิปโดยส่งภาพมาที่ DM ส่วนตัวของ bot ตัวนี้ภายใน ${remaining} วินาที!`
                 );
               } catch {
                 clearInterval(interval);
@@ -378,7 +386,7 @@ client.on("interactionCreate", async (interaction) => {
             }, 1000);
             const dmCollector = dmChannel.createMessageCollector({
               filter: (m) => m.author.id === user.id && m.attachments.size > 0,
-              time: 60_000,
+              time: 600_000,
               max: 1,
             });
 
@@ -391,13 +399,11 @@ client.on("interactionCreate", async (interaction) => {
               await dmChannel.send(`⏳ กำลังตรวจสอบสลิป...`);
 
               try {
-                // โหลดรูปภาพ
                 const image = await loadImage(slip.url);
                 const canvas = createCanvas(image.width, image.height);
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(image, 0, 0);
 
-                // ดึงข้อมูล pixel
                 const imageData = ctx.getImageData(
                   0,
                   0,
@@ -405,7 +411,6 @@ client.on("interactionCreate", async (interaction) => {
                   image.height
                 );
 
-                // แสกน QR code
                 const qrCode = jsQR(
                   imageData.data,
                   imageData.width,
@@ -420,7 +425,8 @@ client.on("interactionCreate", async (interaction) => {
                       `https://api.slipok.com/api/line/apikey/${process.env.BRANCH_ID}`,
                       {
                         data: qrData,
-                        log: false,
+                        log: true,
+                        amount: Number(error.response.data.transaction.price),
                       },
                       {
                         headers: {
@@ -446,11 +452,11 @@ client.on("interactionCreate", async (interaction) => {
                         if (role) {
                           await member.roles.add(role);
                           await dmChannel.send(
-                            `🎉 เพิ่มยศ "${role.name}" สำเร็จแล้ว!`
+                            `🎉 เพิ่มยศ "${role.name}" สำเร็จแล้ว! กรุณาตรวจสอบในเซิร์ฟเวอร์หลัก`
                           );
                         } else {
                           await dmChannel.send(
-                            `⚠️ ไม่พบยศ "${error.response.data.transaction.courseCode}" ในเซิร์ฟเวอร์`
+                            `⚠️ ไม่พบยศ "${error.response.data.transaction.courseCode}" ในเซิร์ฟเวอร์ กรุณาติดต่อแอดมิน`
                           );
                         }
                       } catch (roleError) {
@@ -508,6 +514,235 @@ client.on("interactionCreate", async (interaction) => {
       modal.addComponents(firstActionRow);
 
       await interaction.showModal(modal);
+    } else if (interaction.customId.startsWith("Discounted_Code_No")) {
+      const transaction = await axios.get(
+        `${API_BASE_URL}/transaction/getTransactionByUsernameAndCourse`,
+        {
+          params: {
+            username: interaction.user.username,
+            courseCode: interaction.customId.split("_")[3],
+          },
+        }
+      );
+      console.log(transaction.data.id);
+
+      const response_QR = await axios.post(
+        `${API_BASE_URL}/transaction/createQrCode`,
+        {
+          transactionId: transaction.data.id,
+        }
+      );
+      const qrBuffer = await QRCode.toBuffer(response_QR.data.qrCodeData);
+      const qrAttachment = new AttachmentBuilder(qrBuffer, {
+        name: "qrcode.png",
+      });
+      const qrCodeUrl = await QRCode.toDataURL(response_QR.data.qrCodeData);
+      const price = Number(transaction.data.price).toLocaleString("th-TH");
+
+      const embed = {
+        color: 0x00bfff,
+        title: "!! ธุรกรรมรอดำเนินการ  !!",
+        description: [
+          "กรุณาชำระเงินโดยสแกน QR Code ด้านล่างผ่านแอปธนาคารของคุณ",
+          "",
+          "🕒 *หลังจากชำระเงินแล้ว โปรดกดปุ่มอัปโหลดสลิปการชำระเงินจะมีเวลาแค่ ",
+          "**10 นาที** ในการ upload โปรดชำระเงินก่อนและค่อยกด!!!*",
+          "",
+          `**ราคาที่ต้องชำระ:** ฿${price}`,
+        ].join("\n"),
+        image: { url: "attachment://qrcode.png" },
+        footer: { text: "ระบบชำระเงินอัตโนมัติ BennyBot" },
+        timestamp: new Date().toISOString(),
+      };
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId("upload_slip")
+          .setLabel("อัปโหลดสลิปการชำระเงิน")
+          .setStyle(ButtonStyle.Success)
+      );
+
+      await interaction.reply({
+        embeds: [embed],
+        files: [qrAttachment],
+        components: [row],
+        ephemeral: true,
+      });
+
+      const filter = (
+        i:
+          | ButtonInteraction
+          | StringSelectMenuInteraction
+          | UserSelectMenuInteraction
+          | RoleSelectMenuInteraction
+          | MentionableSelectMenuInteraction
+          | ChannelSelectMenuInteraction
+      ) => {
+        return (
+          i.isButton() &&
+          i.customId === "upload_slip" &&
+          i.user.id === interaction.user.id
+        );
+      };
+
+      const collector = interaction.channel?.createMessageComponentCollector({
+        filter,
+        max: 1,
+        time: 600_000,
+      });
+      async function handleUploadSlip(interaction: ButtonInteraction) {
+        const user: User = interaction.user;
+
+        let dmChannel: DMChannel;
+        try {
+          dmChannel = await user.createDM();
+        } catch (err) {
+          await interaction.reply({
+            content: "❌ ไม่สามารถส่ง DM ให้คุณได้ กรุณาเปิด DM กับ bot ก่อน",
+            ephemeral: true,
+          });
+          return;
+        }
+
+        await interaction.reply({
+          content: "กรุณาเช็ก DM และดำเนินการอัปโหลดสลิปผ่าน DM ส่วนตัวกับ Bot",
+          ephemeral: true,
+        });
+
+        const duration = 600;
+        let remaining = duration;
+
+        const sentMessage = await dmChannel.send(
+          `📎 กรุณาอัปโหลดสลิปโดยส่งภาพมาที่ DM ส่วนตัวของ bot ตัวนี้ภายใน ${remaining} วินาที!`
+        );
+
+        const interval = setInterval(async () => {
+          remaining--;
+          try {
+            await sentMessage.edit(
+              `📎 กรุณาอัปโหลดสลิปโดยส่งภาพมาที่ DM ส่วนตัวของ bot ตัวนี้ภายใน ${remaining} วินาที!`
+            );
+          } catch {
+            clearInterval(interval);
+          }
+          if (remaining <= 0) {
+            clearInterval(interval);
+            try {
+              await sentMessage.edit(
+                "❌ หมดเวลาการอัปโหลดสลิป กรุณาดำเนินการใหม่อีกครั้ง โดย /menu ใหม่ที่เซิร์ฟเวอร์หลัก"
+              );
+            } catch {}
+            dmCollector.stop("time");
+          }
+        }, 1000);
+        const dmCollector = dmChannel.createMessageCollector({
+          filter: (m) => m.author.id === user.id && m.attachments.size > 0,
+          time: 600_000,
+          max: 1,
+        });
+
+        dmCollector.on("collect", async (m: Message) => {
+          clearInterval(interval);
+          dmCollector.stop("time");
+          const slip = m.attachments.first();
+
+          if (!slip) return;
+          await dmChannel.send(`⏳ กำลังตรวจสอบสลิป...`);
+
+          try {
+            const image = await loadImage(slip.url);
+            const canvas = createCanvas(image.width, image.height);
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(image, 0, 0);
+
+            const imageData = ctx.getImageData(0, 0, image.width, image.height);
+
+            const qrCode = jsQR(
+              imageData.data,
+              imageData.width,
+              imageData.height
+            );
+
+            if (qrCode) {
+              const qrData = qrCode.data;
+
+              try {
+                const verifyResponse = await axios.post(
+                  `https://api.slipok.com/api/line/apikey/${process.env.BRANCH_ID}`,
+                  {
+                    data: qrData,
+                    log: true,
+                    amount: Number(transaction.data.price),
+                  },
+                  {
+                    headers: {
+                      "Content-Type": "application/json",
+                      "x-authorization": process.env.SLIPOK_API_KEY,
+                    },
+                  }
+                );
+
+                if (verifyResponse.data.success) {
+                  await dmChannel.send(
+                    `✅ ชำระเงินสำเร็จคุณจะได้รับยศใน discord และ มองเห็นห้องเรียน!`
+                  );
+                  axios.put(`${API_BASE_URL}/transaction/updatePaymentStatus`, {
+                    id: transaction.data.id,
+                    paid: true,
+                  });
+                  try {
+                    const guild = interaction.guild;
+                    const member = await guild!.members.fetch(m.author.id);
+                    const role = guild!.roles.cache.find(
+                      (r) => r.name === `${transaction.data.courseCode}`
+                    );
+
+                    if (role) {
+                      await member.roles.add(role);
+                      await dmChannel.send(
+                        `🎉 เพิ่มยศ "${role.name}" สำเร็จแล้ว! กรุณาตรวจสอบในเซิร์ฟเวอร์หลัก`
+                      );
+                    } else {
+                      await dmChannel.send(
+                        `⚠️ ไม่พบยศ "${transaction.data.courseCode}" ในเซิร์ฟเวอร์ กรุณาติดต่อแอดมิน`
+                      );
+                    }
+                  } catch (roleError) {
+                    await dmChannel.send(
+                      `⚠️ เกิดข้อผิดพลาดในการเพิ่มยศ กรุณาติดต่อแอดมิน`
+                    );
+                    console.error("Role Error:", roleError);
+                  }
+                } else {
+                  await dmChannel.send(
+                    `❌ การตรวจสอบล้มเหลว: ${verifyResponse.data.message} /menu ที่เซิร์ฟเวอร์หลักอีกครั้ง`
+                  );
+                }
+              } catch (apiError: any) {
+                await dmChannel.send(
+                  `❌ ${
+                    apiError.response?.data?.message ||
+                    "เกิดข้อผิดพลาดในการตรวจสอบ กรุณาลองใหม่ /menu ที่เซิร์ฟเวอร์หลักอีกครั้ง"
+                  }`
+                );
+                console.error("API Error:", apiError);
+              }
+            } else {
+              await dmChannel.send(
+                `❌ ไม่พบ QR Code ในรูปภาพ กรุณาส่งสลิปที่ชัดเจนอีกครั้ง`
+              );
+            }
+          } catch (error) {
+            await dmChannel.send(`❌ เกิดข้อผิดพลาดในการอ่านสลิป`);
+            console.error("QR Scan Error:", error);
+          }
+
+          dmCollector.stop("done");
+        });
+      }
+      collector?.on("collect", async (buttonInteraction) => {
+        if (!buttonInteraction.isButton()) return;
+        await handleUploadSlip(buttonInteraction);
+      });
     }
   } else if (interaction.isModalSubmit()) {
     const modalInteraction: ModalSubmitInteraction = interaction;
@@ -531,19 +766,254 @@ client.on("interactionCreate", async (interaction) => {
         await axios.put(`${API_BASE_URL}/transaction/updateDiscountPrice`, {
           code: discount.code,
           price: discount.discount_price,
-          username: interaction.user.username,
-          courseCode: interaction.customId.split("_")[1],
+          username: modalInteraction.user.username,
+          courseCode: modalInteraction.customId.split("_")[1],
         });
 
+        const transaction = await axios.get(
+          `${API_BASE_URL}/transaction/getTransactionByUsernameAndCourse`,
+          {
+            params: {
+              username: modalInteraction.user.username,
+              courseCode: modalInteraction.customId.split("_")[1],
+            },
+          }
+        );
+
+        const response_QR = await axios.post(
+          `${API_BASE_URL}/transaction/createQrCode`,
+          {
+            transactionId: transaction.data.id,
+          }
+        );
+        const qrBuffer = await QRCode.toBuffer(response_QR.data.qrCodeData);
+        const qrAttachment = new AttachmentBuilder(qrBuffer, {
+          name: "qrcode.png",
+        });
+        const qrCodeUrl = await QRCode.toDataURL(response_QR.data.qrCodeData);
+        const price = Number(transaction.data.price).toLocaleString("th-TH");
+
+        const embed = {
+          color: 0x00bfff,
+          title: "!! ธุรกรรมรอดำเนินการ  !!",
+          description: [
+            `คุณได้รับส่วนลด ${discount.discount_price} บาท`,
+            "กรุณาชำระเงินโดยสแกน QR Code ด้านล่างผ่านแอปธนาคารของคุณ",
+            "",
+            "🕒 *หลังจากชำระเงินแล้ว โปรดกดปุ่มอัปโหลดสลิปการชำระเงินจะมีเวลาแค่ ",
+            "**10 นาที** ในการ upload โปรดชำระเงินก่อนและค่อยกด!!!*",
+            "",
+            `**ราคาที่ต้องชำระ:** ฿${price}`,
+          ].join("\n"),
+          image: { url: "attachment://qrcode.png" },
+          footer: { text: "ระบบชำระเงินอัตโนมัติ BennyBot" },
+          timestamp: new Date().toISOString(),
+        };
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId("upload_slip")
+            .setLabel("อัปโหลดสลิปการชำระเงิน")
+            .setStyle(ButtonStyle.Success)
+        );
+
         await modalInteraction.reply({
-          content: `✅ รหัสส่วนลดถูกต้อง! คุณได้รับส่วนลด ${discount.discount_price} บาท`,
+          embeds: [embed],
+          files: [qrAttachment],
+          components: [row],
           ephemeral: true,
         });
-      } catch (error) {
+
+        const filter = (
+          i:
+            | ButtonInteraction
+            | StringSelectMenuInteraction
+            | UserSelectMenuInteraction
+            | RoleSelectMenuInteraction
+            | MentionableSelectMenuInteraction
+            | ChannelSelectMenuInteraction
+        ) => {
+          return (
+            i.isButton() &&
+            i.customId === "upload_slip" &&
+            i.user.id === modalInteraction.user.id
+          );
+        };
+
+        const collector =
+          modalInteraction.channel?.createMessageComponentCollector({
+            filter,
+            max: 1,
+            time: 600_000,
+          });
+        async function handleUploadSlip(modalInteraction: ButtonInteraction) {
+          const user: User = modalInteraction.user;
+
+          let dmChannel: DMChannel;
+          try {
+            dmChannel = await user.createDM();
+          } catch (err) {
+            await modalInteraction.reply({
+              content: "❌ ไม่สามารถส่ง DM ให้คุณได้ กรุณาเปิด DM กับ bot ก่อน",
+              ephemeral: true,
+            });
+            return;
+          }
+
+          await modalInteraction.reply({
+            content:
+              "กรุณาเช็ก DM และดำเนินการอัปโหลดสลิปผ่าน DM ส่วนตัวกับ Bot",
+            ephemeral: true,
+          });
+
+          const duration = 600;
+          let remaining = duration;
+
+          const sentMessage = await dmChannel.send(
+            `📎 กรุณาอัปโหลดสลิปโดยส่งภาพมาที่ DM ส่วนตัวของ bot ตัวนี้ภายใน ${remaining} วินาที!`
+          );
+
+          const interval = setInterval(async () => {
+            remaining--;
+            try {
+              await sentMessage.edit(
+                `📎 กรุณาอัปโหลดสลิปโดยส่งภาพมาที่ DM ส่วนตัวของ bot ตัวนี้ภายใน ${remaining} วินาที!`
+              );
+            } catch {
+              clearInterval(interval);
+            }
+            if (remaining <= 0) {
+              clearInterval(interval);
+              try {
+                await sentMessage.edit(
+                  "❌ หมดเวลาการอัปโหลดสลิป กรุณาดำเนินการใหม่อีกครั้ง โดย /menu ใหม่ที่เซิร์ฟเวอร์หลัก"
+                );
+              } catch {}
+              dmCollector.stop("time");
+            }
+          }, 1000);
+          const dmCollector = dmChannel.createMessageCollector({
+            filter: (m) => m.author.id === user.id && m.attachments.size > 0,
+            time: 600_000,
+            max: 1,
+          });
+
+          dmCollector.on("collect", async (m: Message) => {
+            clearInterval(interval);
+            dmCollector.stop("time");
+            const slip = m.attachments.first();
+
+            if (!slip) return;
+            await dmChannel.send(`⏳ กำลังตรวจสอบสลิป...`);
+
+            try {
+              const image = await loadImage(slip.url);
+              const canvas = createCanvas(image.width, image.height);
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(image, 0, 0);
+
+              const imageData = ctx.getImageData(
+                0,
+                0,
+                image.width,
+                image.height
+              );
+
+              const qrCode = jsQR(
+                imageData.data,
+                imageData.width,
+                imageData.height
+              );
+
+              if (qrCode) {
+                const qrData = qrCode.data;
+
+                try {
+                  const verifyResponse = await axios.post(
+                    `https://api.slipok.com/api/line/apikey/${process.env.BRANCH_ID}`,
+                    {
+                      data: qrData,
+                      log: true,
+                      amount: Number(transaction.data.price),
+                    },
+                    {
+                      headers: {
+                        "Content-Type": "application/json",
+                        "x-authorization": process.env.SLIPOK_API_KEY,
+                      },
+                    }
+                  );
+
+                  if (verifyResponse.data.success) {
+                    await dmChannel.send(
+                      `✅ ชำระเงินสำเร็จคุณจะได้รับยศใน discord และ มองเห็นห้องเรียน!`
+                    );
+                    axios.put(
+                      `${API_BASE_URL}/transaction/updatePaymentStatus`,
+                      {
+                        id: transaction.data.id,
+                        paid: true,
+                      }
+                    );
+                    try {
+                      const guild = modalInteraction.guild;
+                      const member = await guild!.members.fetch(m.author.id);
+                      const role = guild!.roles.cache.find(
+                        (r) => r.name === `${transaction.data.courseCode}`
+                      );
+
+                      if (role) {
+                        await member.roles.add(role);
+                        await dmChannel.send(
+                          `🎉 เพิ่มยศ "${role.name}" สำเร็จแล้ว! กรุณาตรวจสอบในเซิร์ฟเวอร์หลัก`
+                        );
+                      } else {
+                        await dmChannel.send(
+                          `⚠️ ไม่พบยศ "${transaction.data.courseCode}" ในเซิร์ฟเวอร์ กรุณาติดต่อแอดมิน`
+                        );
+                      }
+                    } catch (roleError) {
+                      await dmChannel.send(
+                        `⚠️ เกิดข้อผิดพลาดในการเพิ่มยศ กรุณาติดต่อแอดมิน`
+                      );
+                      console.error("Role Error:", roleError);
+                    }
+                  } else {
+                    await dmChannel.send(
+                      `❌ การตรวจสอบล้มเหลว: ${verifyResponse.data.message} /menu ที่เซิร์ฟเวอร์หลักอีกครั้ง`
+                    );
+                  }
+                } catch (apiError: any) {
+                  await dmChannel.send(
+                    `❌ ${
+                      apiError.response?.data?.message ||
+                      "เกิดข้อผิดพลาดในการตรวจสอบ กรุณาลองใหม่ /menu ที่เซิร์ฟเวอร์หลักอีกครั้ง"
+                    }`
+                  );
+                  console.error("API Error:", apiError);
+                }
+              } else {
+                await dmChannel.send(
+                  `❌ ไม่พบ QR Code ในรูปภาพ กรุณาส่งสลิปที่ชัดเจนอีกครั้ง`
+                );
+              }
+            } catch (error) {
+              await dmChannel.send(`❌ เกิดข้อผิดพลาดในการอ่านสลิป`);
+              console.error("QR Scan Error:", error);
+            }
+
+            dmCollector.stop("done");
+          });
+        }
+        collector?.on("collect", async (buttonInteraction) => {
+          if (!buttonInteraction.isButton()) return;
+          await handleUploadSlip(buttonInteraction);
+        });
+      } catch (error: any) {
         await modalInteraction.reply({
           content: "❌ รหัสส่วนลดไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง",
           ephemeral: true,
         });
+        console.error("Discount Code Error:", error.message);
       }
     }
   }

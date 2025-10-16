@@ -53,7 +53,7 @@ export const getTransactions = async (req: Request, res: Response) => {
   const transactions = await prisma.transaction.findMany();
   res.json(transactions);
 };
-export const getTransactionByUsernameAndCourse = async (
+export const CheckTransactionByUsernameAndCourseThereExists = async (
   req: Request,
   res: Response
 ) => {
@@ -98,6 +98,40 @@ export const createQrCode = async (req: Request, res: Response) => {
       amount: Number(transaction.price),
     });
     res.json({ qrCodeData: qrCodeData });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const getTransactionByUsernameAndCourse = async (
+  req: Request,
+  res: Response
+) => {
+  const username = req.query.username as string;
+  const courseCode = req.query.courseCode as string;
+  const transaction = await prisma.transaction.findFirst({
+    where: { username: username, courseCode: courseCode },
+  });
+  if (!transaction) {
+    return res.status(404).json({ error: "Transaction not found" });
+  }
+  res.json(transaction);
+};
+
+export const updatePaymentStatus = async (req: Request, res: Response) => {
+  try {
+    const { id, paid } = req.body;
+    const transaction = await prisma.transaction.findUnique({
+      where: { id: String(id) },
+    });
+    if (!transaction) {
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+    const updatedTransaction = await prisma.transaction.update({
+      where: { id: String(id) },
+      data: { paid: paid },
+    });
+    res.json(updatedTransaction);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
