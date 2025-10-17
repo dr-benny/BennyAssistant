@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "concurrently \"npm run dev:web\" \"npm run dev:bot\"",
+    "start": "concurrently \"ts-node ./src/bot/index.ts\" \"ts-node ./src/web/index.ts\"",
     "dev:bot": "ts-node-dev  ./src/bot/index.ts",
     "dev:web": "ts-node-dev ./src/web/index.ts"
   },
