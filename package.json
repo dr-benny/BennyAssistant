@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/bot/index.js",
+    "start": "concurrently \"npm run dev:web\" \"npm run dev:bot\"",
     "dev:bot": "ts-node-dev  ./src/bot/index.ts",
     "dev:web": "ts-node-dev ./src/web/index.ts"
   },
@@ -16,6 +16,7 @@
     "@prisma/client": "^6.17.1",
     "axios": "^1.12.2",
     "canvas": "^3.2.0",
+    "concurrently": "^9.2.1",
     "discord.js": "^14.23.2",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
