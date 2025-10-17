@@ -122,6 +122,7 @@ client.on("interactionCreate", async (interaction) => {
         if (courses.length === 0) {
           await interaction.reply({
             content: "ไม่พบคอร์สในขณะนี้",
+            ephemeral: true,
           });
           return;
         }
