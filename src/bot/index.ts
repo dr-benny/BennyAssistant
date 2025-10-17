@@ -76,10 +76,12 @@ client.on("interactionCreate", async (interaction) => {
           .setEmoji("📚")
           .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-          .setCustomId("menu_tutor")
           .setLabel("About Tutor")
           .setEmoji("👨‍🏫")
-          .setStyle(ButtonStyle.Success),
+          .setStyle(ButtonStyle.Link)
+          .setURL(
+            "https://drive.google.com/file/d/1meUhGyUyq3tNMIcq5udr3ZUt36mKGsNu/view?usp=sharing"
+          ),
         new ButtonBuilder()
           .setCustomId("menu_support")
           .setLabel("Support")
@@ -167,14 +169,10 @@ client.on("interactionCreate", async (interaction) => {
           content: "❌ เกิดข้อผิดพลาดในการดึงข้อมูลคอร์ส กรุณาลองใหม่อีกครั้ง",
         });
       }
-    } else if (interaction.customId === "menu_tutor") {
-      await interaction.reply({
-        content: "👨‍🏫 **About Tutor**\n\nข้อมูลเกี่ยวกับติวเตอร์...",
-        ephemeral: true,
-      });
     } else if (interaction.customId === "menu_support") {
       await interaction.reply({
-        content: "💬 **Support**\n\nติดต่อสอบถาม...",
+        content:
+          "💬 **Support**\nติดต่อสอบถามหรือขอความช่วยเหลือได้ที่ Discord นี้ : <@495284915202424843>",
         ephemeral: true,
       });
     } else if (interaction.customId.startsWith("course_")) {
