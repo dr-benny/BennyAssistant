@@ -67,6 +67,19 @@ client.once("ready", () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
+  async function safeReply(
+    interaction: ButtonInteraction | ModalSubmitInteraction,
+    options: any
+  ) {
+    try {
+      if (interaction.replied || interaction.deferred) {
+        return await interaction.editReply(options);
+      }
+      return await interaction.reply({ ...options, ephemeral: true });
+    } catch (error) {
+      console.error("Error in safeReply:", error);
+    }
+  }
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === "menu") {
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -351,7 +364,7 @@ client.on("interactionCreate", async (interaction) => {
               return;
             }
 
-            await interaction.reply({
+            await interaction.followUp({
               content:
                 "กรุณาเช็ก DM และดำเนินการอัปโหลดสลิปผ่าน DM ส่วนตัวกับ Bot",
               ephemeral: true,
