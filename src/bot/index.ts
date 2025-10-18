@@ -343,6 +343,7 @@ client.on("interactionCreate", async (interaction) => {
             });
 
           activeCollectors.set(interaction.user.id, collector);
+          const activeCollectorsDm = new Map<string, any>();
           async function handleUploadSlip(interaction: ButtonInteraction) {
             await interaction.deferReply({ ephemeral: true });
             const user: User = interaction.user;
@@ -391,13 +392,20 @@ client.on("interactionCreate", async (interaction) => {
                 dmCollector.stop("time");
               }
             }, 1000);
+            const oldCollector = activeCollectorsDm.get(interaction.user.id);
+            if (oldCollector && !oldCollector.ended) {
+              oldCollector.stop("new_interaction_DM");
+            }
             const dmCollector = dmChannel.createMessageCollector({
               filter: (m) => m.author.id === user.id && m.attachments.size > 0,
               time: 600_000,
               max: 1,
             });
 
+            activeCollectorsDm.set(interaction.user.id, dmCollector);
+
             dmCollector.on("collect", async (m: Message) => {
+              activeCollectors.delete(user.id);
               clearInterval(interval);
               dmCollector.stop("time");
               const slip = m.attachments.first();
@@ -602,6 +610,8 @@ client.on("interactionCreate", async (interaction) => {
         time: 600_000,
       });
       activeCollectors.set(interaction.user.id, collector);
+
+      const activeCollectorsDm = new Map<string, any>();
       async function handleUploadSlip(interaction: ButtonInteraction) {
         await interaction.deferReply({ ephemeral: true });
         const user: User = interaction.user;
@@ -648,13 +658,20 @@ client.on("interactionCreate", async (interaction) => {
             dmCollector.stop("time");
           }
         }, 1000);
+        const oldCollector = activeCollectorsDm.get(interaction.user.id);
+        if (oldCollector && !oldCollector.ended) {
+          oldCollector.stop("new_interaction_DM");
+        }
         const dmCollector = dmChannel.createMessageCollector({
           filter: (m) => m.author.id === user.id && m.attachments.size > 0,
           time: 600_000,
           max: 1,
         });
 
+        activeCollectorsDm.set(interaction.user.id, dmCollector);
+
         dmCollector.on("collect", async (m: Message) => {
+          activeCollectors.delete(user.id);
           clearInterval(interval);
           dmCollector.stop("time");
           const slip = m.attachments.first();
@@ -866,6 +883,7 @@ client.on("interactionCreate", async (interaction) => {
           });
 
         activeCollectors.set(interaction.user.id, collector);
+        const activeCollectorsDm = new Map<string, any>();
         async function handleUploadSlip(modalInteraction: ButtonInteraction) {
           await modalInteraction.deferReply({ ephemeral: true });
           const user: User = modalInteraction.user;
@@ -913,13 +931,20 @@ client.on("interactionCreate", async (interaction) => {
               dmCollector.stop("time");
             }
           }, 1000);
+
+          const oldCollector = activeCollectorsDm.get(interaction.user.id);
+          if (oldCollector && !oldCollector.ended) {
+            oldCollector.stop("new_interaction_DM");
+          }
           const dmCollector = dmChannel.createMessageCollector({
             filter: (m) => m.author.id === user.id && m.attachments.size > 0,
             time: 600_000,
             max: 1,
           });
+          activeCollectorsDm.set(modalInteraction.user.id, dmCollector);
 
           dmCollector.on("collect", async (m: Message) => {
+            activeCollectors.delete(user.id);
             clearInterval(interval);
             dmCollector.stop("time");
             const slip = m.attachments.first();
