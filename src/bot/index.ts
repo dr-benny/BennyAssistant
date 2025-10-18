@@ -344,13 +344,14 @@ client.on("interactionCreate", async (interaction) => {
 
           activeCollectors.set(interaction.user.id, collector);
           async function handleUploadSlip(interaction: ButtonInteraction) {
+            await interaction.deferReply({ ephemeral: true });
             const user: User = interaction.user;
 
             let dmChannel: DMChannel;
             try {
               dmChannel = await user.createDM();
             } catch (err) {
-              await interaction.reply({
+              await interaction.followUp({
                 content:
                   "❌ ไม่สามารถส่ง DM ให้คุณได้ กรุณาเปิด DM กับ bot ก่อน",
                 ephemeral: true,
@@ -358,7 +359,7 @@ client.on("interactionCreate", async (interaction) => {
               return;
             }
 
-            await interaction.reply({
+            await interaction.followUp({
               content:
                 "กรุณาเช็ก DM และดำเนินการอัปโหลดสลิปผ่าน DM ส่วนตัวกับ Bot",
               ephemeral: true,
@@ -602,20 +603,21 @@ client.on("interactionCreate", async (interaction) => {
       });
       activeCollectors.set(interaction.user.id, collector);
       async function handleUploadSlip(interaction: ButtonInteraction) {
+        await interaction.deferReply({ ephemeral: true });
         const user: User = interaction.user;
 
         let dmChannel: DMChannel;
         try {
           dmChannel = await user.createDM();
         } catch (err) {
-          await interaction.reply({
+          await interaction.followUp({
             content: "❌ ไม่สามารถส่ง DM ให้คุณได้ กรุณาเปิด DM กับ bot ก่อน",
             ephemeral: true,
           });
           return;
         }
 
-        await interaction.reply({
+        await interaction.followUp({
           content: "กรุณาเช็ก DM และดำเนินการอัปโหลดสลิปผ่าน DM ส่วนตัวกับ Bot",
           ephemeral: true,
         });
@@ -865,20 +867,21 @@ client.on("interactionCreate", async (interaction) => {
 
         activeCollectors.set(interaction.user.id, collector);
         async function handleUploadSlip(modalInteraction: ButtonInteraction) {
+          await modalInteraction.deferReply({ ephemeral: true });
           const user: User = modalInteraction.user;
 
           let dmChannel: DMChannel;
           try {
             dmChannel = await user.createDM();
           } catch (err) {
-            await modalInteraction.reply({
+            await modalInteraction.followUp({
               content: "❌ ไม่สามารถส่ง DM ให้คุณได้ กรุณาเปิด DM กับ bot ก่อน",
               ephemeral: true,
             });
             return;
           }
 
-          await modalInteraction.reply({
+          await modalInteraction.followUp({
             content:
               "กรุณาเช็ก DM และดำเนินการอัปโหลดสลิปผ่าน DM ส่วนตัวกับ Bot",
             ephemeral: true,
