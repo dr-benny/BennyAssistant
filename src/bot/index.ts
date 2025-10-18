@@ -30,6 +30,7 @@ import { Course } from "../models/Course";
 import * as QRCode from "qrcode";
 import jsQR from "jsqr";
 import { createCanvas, loadImage } from "canvas";
+import { error } from "console";
 dotenv.config();
 
 const client = new Client({
@@ -67,19 +68,6 @@ client.once("ready", () => {
 });
 
 client.on("interactionCreate", async (interaction) => {
-  async function safeReply(
-    interaction: ButtonInteraction | ModalSubmitInteraction,
-    options: any
-  ) {
-    try {
-      if (interaction.replied || interaction.deferred) {
-        return await interaction.editReply(options);
-      }
-      return await interaction.reply({ ...options, ephemeral: true });
-    } catch (error) {
-      console.error("Error in safeReply:", error);
-    }
-  }
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === "menu") {
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -342,6 +330,10 @@ client.on("interactionCreate", async (interaction) => {
               i.user.id === interaction.user.id
             );
           };
+          const activeCollectors = new Map<string, any>();
+          if (activeCollectors.has(interaction.user.id)) {
+            activeCollectors.get(interaction.user.id).stop("new_interaction");
+          }
 
           const collector =
             interaction.channel?.createMessageComponentCollector({
@@ -349,6 +341,8 @@ client.on("interactionCreate", async (interaction) => {
               max: 1,
               time: 600_000,
             });
+
+          activeCollectors.set(interaction.user.id, collector);
           async function handleUploadSlip(interaction: ButtonInteraction) {
             const user: User = interaction.user;
 
@@ -364,7 +358,7 @@ client.on("interactionCreate", async (interaction) => {
               return;
             }
 
-            await interaction.followUp({
+            await interaction.reply({
               content:
                 "กรุณาเช็ก DM และดำเนินการอัปโหลดสลิปผ่าน DM ส่วนตัวกับ Bot",
               ephemeral: true,
@@ -505,6 +499,7 @@ client.on("interactionCreate", async (interaction) => {
             });
           }
           collector?.on("collect", async (buttonInteraction) => {
+            activeCollectors.delete(interaction.user.id);
             if (!buttonInteraction.isButton()) return;
             await handleUploadSlip(buttonInteraction);
           });
@@ -596,11 +591,16 @@ client.on("interactionCreate", async (interaction) => {
         );
       };
 
+      const activeCollectors = new Map<string, any>();
+      if (activeCollectors.has(interaction.user.id)) {
+        activeCollectors.get(interaction.user.id).stop("new_interaction");
+      }
       const collector = interaction.channel?.createMessageComponentCollector({
         filter,
         max: 1,
         time: 600_000,
       });
+      activeCollectors.set(interaction.user.id, collector);
       async function handleUploadSlip(interaction: ButtonInteraction) {
         const user: User = interaction.user;
 
@@ -752,6 +752,7 @@ client.on("interactionCreate", async (interaction) => {
         });
       }
       collector?.on("collect", async (buttonInteraction) => {
+        activeCollectors.delete(interaction.user.id);
         if (!buttonInteraction.isButton()) return;
         await handleUploadSlip(buttonInteraction);
       });
@@ -851,12 +852,18 @@ client.on("interactionCreate", async (interaction) => {
           );
         };
 
+        const activeCollectors = new Map<string, any>();
+        if (activeCollectors.has(interaction.user.id)) {
+          activeCollectors.get(interaction.user.id).stop("new_interaction");
+        }
         const collector =
           modalInteraction.channel?.createMessageComponentCollector({
             filter,
             max: 1,
             time: 600_000,
           });
+
+        activeCollectors.set(interaction.user.id, collector);
         async function handleUploadSlip(modalInteraction: ButtonInteraction) {
           const user: User = modalInteraction.user;
 
@@ -1017,6 +1024,7 @@ client.on("interactionCreate", async (interaction) => {
           });
         }
         collector?.on("collect", async (buttonInteraction) => {
+          activeCollectors.delete(interaction.user.id);
           if (!buttonInteraction.isButton()) return;
           await handleUploadSlip(buttonInteraction);
         });
